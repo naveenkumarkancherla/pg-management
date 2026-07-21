@@ -27,6 +27,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _password = TextEditingController();
   final _phone = TextEditingController();
   bool _register = false; // false = login, true = register
+  bool _obscure = true; // password hidden by default
   String _msg = '';
 
   void _toRoot() => Navigator.of(context)
@@ -79,7 +80,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 20),
                   TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.white)),
                   const SizedBox(height: 12),
-                  TextField(controller: _password, obscureText: true, decoration: const InputDecoration(labelText: 'Password', filled: true, fillColor: Colors.white)),
+                  TextField(
+                    controller: _password,
+                    obscureText: _obscure,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      filled: true,
+                      fillColor: Colors.white,
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscure ? Icons.visibility_off : Icons.visibility),
+                        tooltip: _obscure ? 'Show password' : 'Hide password',
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                    ),
+                  ),
                   if (_register) ...[
                     const SizedBox(height: 12),
                     TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone', filled: true, fillColor: Colors.white)),
