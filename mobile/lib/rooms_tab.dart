@@ -86,15 +86,8 @@ class _RoomsTabState extends State<RoomsTab> {
     }
   }
 
-  // ---- Bulk generate: multiple sharing types, each its own rent ----
-  Map<String, TextEditingController> _newGroup() => {
-        'prefix': TextEditingController(),
-        'count': TextEditingController(text: '5'),
-        'sharing': TextEditingController(text: '2'),
-        'rent': TextEditingController(text: '5000'),
-        'type': TextEditingController(),
-      };
-
+  // ---- Generate rooms: floor → #rooms + prefix → per-room beds & rent ----
+  // Beds vary per room, so we ask beds + rent for each room individually.
   Future<void> _generateRooms() async {
     final floors = await Api.floors(widget.pgId);
     if (!mounted) return;
@@ -103,72 +96,101 @@ class _RoomsTabState extends State<RoomsTab> {
       return;
     }
     Map floor = floors.first as Map;
-    final groups = <Map<String, TextEditingController>>[_newGroup()];
+    final countCtl = TextEditingController(text: '5');
+    final prefixCtl = TextEditingController();
+    int step = 0;
+    var rooms = <Map<String, TextEditingController>>[];
+
+    String roomNumber(int i) => '${prefixCtl.text.trim()}${i + 1}';
 
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
-        builder: (c, setLocal) => AlertDialog(
-          title: const Text('Generate rooms'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SearchableField<Map>(
-                  label: 'Floor',
-                  value: floor,
-                  items: floors.cast<Map>(),
-                  labelOf: (f) => 'Floor ${f['name']}',
-                  onSelected: (f) => setLocal(() => floor = f),
-                ),
-                const SizedBox(height: 10),
-                const Text('Sharing types (each its own rent):', style: TextStyle(fontWeight: FontWeight.w600, color: kGreen)),
-                for (int i = 0; i < groups.length; i++)
-                  Card(
-                    color: Colors.white,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(children: [
-                        Row(children: [
-                          Expanded(child: TextField(controller: groups[i]['prefix'], decoration: const InputDecoration(labelText: 'Prefix', isDense: true))),
-                          const SizedBox(width: 6),
-                          Expanded(child: TextField(controller: groups[i]['count'], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Rooms', isDense: true))),
-                          if (groups.length > 1)
-                            IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => setLocal(() => groups.removeAt(i))),
-                        ]),
-                        const SizedBox(height: 6),
-                        Row(children: [
-                          Expanded(child: TextField(controller: groups[i]['sharing'], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Beds', isDense: true))),
-                          const SizedBox(width: 6),
-                          Expanded(child: TextField(controller: groups[i]['rent'], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Rent', isDense: true))),
-                          const SizedBox(width: 6),
-                          Expanded(child: TextField(controller: groups[i]['type'], decoration: const InputDecoration(labelText: 'Type', isDense: true))),
-                        ]),
-                      ]),
-                    ),
+        builder: (c, setLocal) {
+          if (step == 0) {
+            // Step 1: floor, how many rooms, prefix.
+            return AlertDialog(
+              title: const Text('Generate rooms · 1 of 2'),
+              content: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  SearchableField<Map>(
+                    label: 'Floor',
+                    value: floor,
+                    items: floors.cast<Map>(),
+                    labelOf: (f) => 'Floor ${f['name']}',
+                    onSelected: (f) => setLocal(() => floor = f),
                   ),
-                TextButton.icon(onPressed: () => setLocal(() => groups.add(_newGroup())), icon: const Icon(Icons.add), label: const Text('Add sharing type')),
-              ]),
+                  const SizedBox(height: 14),
+                  TextField(controller: countCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'How many rooms on this floor?', border: OutlineInputBorder())),
+                  const SizedBox(height: 14),
+                  TextField(controller: prefixCtl, decoration: const InputDecoration(labelText: 'Room prefix (e.g. 10 → 101, 102…)', border: OutlineInputBorder())),
+                ]),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () {
+                    final n = int.tryParse(countCtl.text) ?? 0;
+                    if (n < 1) {
+                      snack(context, 'Enter at least 1 room');
+                      return;
+                    }
+                    rooms = List.generate(n, (_) => {
+                          'beds': TextEditingController(text: '2'),
+                          'rent': TextEditingController(text: '5000'),
+                        });
+                    setLocal(() => step = 1);
+                  },
+                  child: const Text('Next'),
+                ),
+              ],
+            );
+          }
+          // Step 2: beds + rent for each room.
+          return AlertDialog(
+            title: const Text('Beds & rent per room · 2 of 2'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  for (int i = 0; i < rooms.length; i++)
+                    Card(
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Row(children: [
+                          SizedBox(width: 70, child: Text('Room ${roomNumber(i)}', style: const TextStyle(fontWeight: FontWeight.w600, color: kGreen))),
+                          const SizedBox(width: 6),
+                          Expanded(child: TextField(controller: rooms[i]['beds'], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Beds', isDense: true))),
+                          const SizedBox(width: 6),
+                          Expanded(child: TextField(controller: rooms[i]['rent'], keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Rent/bed', isDense: true))),
+                        ]),
+                      ),
+                    ),
+                ]),
+              ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Generate')),
-          ],
-        ),
+            actions: [
+              TextButton(onPressed: () => setLocal(() => step = 0), child: const Text('Back')),
+              FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Generate')),
+            ],
+          );
+        },
       ),
     );
     if (ok == true && mounted) {
+      final prefix = prefixCtl.text.trim();
       final done = await runTask(context, () async {
+        // one group per room (count 1) so each room keeps its own bed count + rent
         await Api.post('/api/floors/${floor['id']}/generate_rooms/', {
           'groups': [
-            for (final g in groups)
+            for (int i = 0; i < rooms.length; i++)
               {
-                'prefix': g['prefix']!.text,
-                'count': int.tryParse(g['count']!.text) ?? 0,
-                'berths_per_room': int.tryParse(g['sharing']!.text) ?? 2,
-                'rent_amount': g['rent']!.text,
-                'room_type': g['type']!.text,
+                'prefix': prefix,
+                'count': 1,
+                'start_number': i + 1,
+                'berths_per_room': int.tryParse(rooms[i]['beds']!.text) ?? 1,
+                'rent_amount': rooms[i]['rent']!.text,
               },
           ],
         });
