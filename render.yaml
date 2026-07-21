@@ -6,7 +6,7 @@ services:
     plan: free                  # free spins down when idle (cold starts); bump to starter for always-on
     region: singapore           # pick the region closest to your Supabase project (lower DB latency)
     buildCommand: "pip install -r requirements.txt && python manage.py collectstatic --noinput"
-    startCommand: "python manage.py migrate && gunicorn config.wsgi --log-file -"
+    startCommand: "python manage.py migrate && gunicorn config.wsgi --bind 0.0.0.0:$PORT --log-file -"
     healthCheckPath: /api/plans/
     envVars:
       - key: PYTHON_VERSION

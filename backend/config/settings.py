@@ -13,6 +13,11 @@ SECRET_KEY = env("SECRET_KEY", default="dev-insecure-change-me")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = ["*"] if DEBUG else env.list("ALLOWED_HOSTS", default=[])
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+# Render injects the external hostname at runtime — auto-trust it so the URL is never hardcoded.
+_render_host = env("RENDER_EXTERNAL_HOSTNAME", default="")
+if _render_host:
+    ALLOWED_HOSTS.append(_render_host)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{_render_host}")
 # ponytail: wide-open only in DEBUG (web dev). In prod list the web app's origin(s)
 # in CORS_ALLOWED_ORIGINS. Native mobile apps don't need CORS (not browsers).
 CORS_ALLOW_ALL_ORIGINS = DEBUG
