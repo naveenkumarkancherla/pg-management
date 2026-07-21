@@ -28,6 +28,8 @@ class ApiException implements Exception {
   }
 }
 
+enum _Refresh { ok, invalid, network }
+
 class Api {
   static const _storage = FlutterSecureStorage();
 
@@ -51,7 +53,9 @@ class Api {
   }
 
   /// Runs an authenticated request; on 401 tries a silent refresh once, then retries.
-  /// If refresh fails, clears tokens, notifies the app, and throws a friendly error.
+  /// The session is cleared ONLY when the server definitively rejects the refresh token
+  /// (a true 401). Network/timeout failures (e.g. a sleeping server) keep the session and
+  /// surface a friendly network error — the user is never logged out by a transient blip.
   static Future<http.Response> _send(
       Future<http.Response> Function(Map<String, String>) call,
       {bool json = true}) async {
@@ -61,31 +65,43 @@ class Api {
     } catch (_) {
       throw ApiException(0, '');
     }
-    if (r.statusCode == 401 && await _tryRefresh()) {
-      r = await call(await _headers(json: json));
+    if (r.statusCode != 401) return r;
+
+    final refresh = await _tryRefresh();
+    if (refresh == _Refresh.ok) {
+      try {
+        r = await call(await _headers(json: json));
+      } catch (_) {
+        throw ApiException(0, '');
+      }
+      if (r.statusCode != 401) return r;
+      // still 401 with a fresh token → genuinely unauthorized → fall through to logout
+    } else if (refresh == _Refresh.network) {
+      throw ApiException(0, ''); // couldn't reach refresh (server waking) — keep session
     }
-    if (r.statusCode == 401) {
-      await logout();
-      onSessionExpired?.call();
-      throw ApiException(401, '{"detail":"Your session expired. Please log in again."}');
-    }
-    return r;
+
+    await logout();
+    onSessionExpired?.call();
+    throw ApiException(401, '{"detail":"Your session expired. Please log in again."}');
   }
 
-  static Future<bool> _tryRefresh() async {
+  static Future<_Refresh> _tryRefresh() async {
     final rt = await _storage.read(key: 'refresh');
-    if (rt == null) return false;
+    if (rt == null) return _Refresh.invalid;
+    http.Response r;
     try {
-      final r = await http.post(_uri('/api/auth/refresh/'),
+      r = await http.post(_uri('/api/auth/refresh/'),
           headers: {'Content-Type': 'application/json'}, body: jsonEncode({'refresh': rt}));
-      if (r.statusCode == 200) {
-        final data = jsonDecode(r.body);
-        await _storage.write(key: 'access', value: data['access']);
-        if (data['refresh'] != null) await _storage.write(key: 'refresh', value: data['refresh']);
-        return true;
-      }
-    } catch (_) {}
-    return false;
+    } catch (_) {
+      return _Refresh.network; // network/timeout → do NOT clear the session
+    }
+    if (r.statusCode == 200) {
+      final data = jsonDecode(r.body);
+      await _storage.write(key: 'access', value: data['access']);
+      if (data['refresh'] != null) await _storage.write(key: 'refresh', value: data['refresh']);
+      return _Refresh.ok;
+    }
+    return _Refresh.invalid; // server rejected the refresh token → real session end
   }
 
   static dynamic _decode(http.Response r) {

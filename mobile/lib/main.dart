@@ -65,17 +65,19 @@ class _RootDeciderState extends State<RootDecider> {
   }
 
   Future<void> _decide() async {
-    // Always resolve to a screen — never hang on a slow/blocked storage read or network.
+    // Stay logged in until the user explicitly logs out: only a genuine auth failure
+    // (session rejected) sends them to login. A slow/sleeping server or network blip
+    // keeps them in the app.
     Widget next = const AuthScreen();
-    try {
-      final logged = await Api.isLoggedIn()
-          .timeout(const Duration(seconds: 5), onTimeout: () => false);
-      if (logged) {
-        final me = await Api.me().timeout(const Duration(seconds: 15));
+    if (await Api.isLoggedIn()) {
+      try {
+        final me = await Api.me().timeout(const Duration(seconds: 30));
         next = me['has_access'] == true ? const HomeScreen() : const PaymentScreen();
+      } on ApiException catch (e) {
+        next = e.status == 401 ? const AuthScreen() : const HomeScreen();
+      } catch (_) {
+        next = const HomeScreen(); // timeout/other transient issue → stay logged in
       }
-    } catch (_) {
-      next = const AuthScreen();
     }
     if (mounted) setState(() => _screen = next);
   }

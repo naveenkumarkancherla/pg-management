@@ -102,8 +102,10 @@ REST_FRAMEWORK = {
 # Long session: 1-day access token + 60-day refresh. Client auto-refreshes silently,
 # so owners rarely re-login. Refresh rotates and old ones are blacklisted-by-expiry.
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=60),
+    # Long-lived so the app stays logged in until the user explicitly logs out. Access
+    # token rarely needs refreshing; refresh rolls forward on each use (rotation).
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=365),
     "ROTATE_REFRESH_TOKENS": True,
 }
 
