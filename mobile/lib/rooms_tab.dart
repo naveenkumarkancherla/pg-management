@@ -110,7 +110,7 @@ class _RoomsTabState extends State<RoomsTab> {
           if (step == 0) {
             // Step 1: floor, how many rooms, prefix.
             return AlertDialog(
-              title: const Text('Generate rooms · 1 of 2'),
+              title: const Text('Generate rooms'),
               content: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   SearchableField<Map>(
@@ -148,7 +148,7 @@ class _RoomsTabState extends State<RoomsTab> {
           }
           // Step 2: beds + rent for each room.
           return AlertDialog(
-            title: const Text('Beds & rent per room · 2 of 2'),
+            title: const Text('Beds & rent per room'),
             content: SizedBox(
               width: double.maxFinite,
               child: SingleChildScrollView(
