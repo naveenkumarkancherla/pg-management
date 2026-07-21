@@ -16,6 +16,15 @@ dependencies:
 
 dev_dependencies:
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/pg_icon.png"
+  adaptive_icon_background: "#232320"
+  adaptive_icon_foreground: "assets/icon/pg_fg.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
