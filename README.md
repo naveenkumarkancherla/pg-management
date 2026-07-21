@@ -72,7 +72,7 @@ python manage.py expire_subscriptions
 ```
 Set these as **daily scheduled jobs** on Railway/Render. Providers are env-gated
 (`GUPSHUP_*`, `MSG91_API_KEY`); with none set, sends log `no_provider`. Due date = tenant's
-join day-of-month; reminds when due within 3 days (or overdue) and not paid this month.
+join day-of-month; reminds on the due day and the next 2 days (e.g. due 21st → 21st–23rd), not before, while unpaid.
 Every send is recorded in `ReminderLog` (no duplicate sends per day).
 
 ## Deploy (Phase 7)

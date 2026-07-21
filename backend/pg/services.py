@@ -7,7 +7,7 @@ from django.db.models import Sum
 
 from .models import Berth, Expense, Payment, Tenant
 
-REMIND_BEFORE_DAYS = 3  # ponytail: constant, not config — change here if it ever varies
+REMIND_WINDOW_DAYS = 3  # remind on the due day and the next 2 days (e.g. due 21st → 21–23)
 
 
 def due_date_for(join_date, ref):
@@ -31,14 +31,15 @@ def billing_period(join_date, today):
 
 
 def tenants_to_remind(owner, today):
-    """Active tenants whose rent is due within REMIND_BEFORE_DAYS (or overdue) and
-    not yet marked paid for the current month."""
+    """Active tenants whose rent is unpaid, reminded only on the due day and the next
+    REMIND_WINDOW_DAYS-1 days (never before the due date; e.g. due 21st → 21st–23rd)."""
     out = []
     active = Tenant.objects.filter(owner=owner, berth__isnull=False, vacate_date__isnull=True)
     for t in active.select_related("berth__room"):
         due = due_date_for(t.join_date, today)
-        if (due - today).days > REMIND_BEFORE_DAYS:
-            continue  # not due yet
+        days_since_due = (today - due).days
+        if not (0 <= days_since_due < REMIND_WINDOW_DAYS):
+            continue  # only from the due date, for a 3-day window
         paid = Payment.objects.filter(
             tenant=t, month=today.month, year=today.year, status=Payment.PAID
         ).exists()

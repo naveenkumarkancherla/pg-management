@@ -105,20 +105,23 @@ class ReminderSelectionTest(TestCase):
         # join on the 31st, February → clamp to 28/29
         self.assertEqual(due_date_for(date(2026, 1, 31), date(2026, 2, 10)), date(2026, 2, 28))
 
-    def test_only_unpaid_active_due_soon(self):
-        today = date(2026, 7, 5)
+    def test_reminds_from_due_date_within_window(self):
+        today = date(2026, 7, 22)  # inside the window for a 21st due date (21–23)
         b = _berth(self.owner, status=Berth.OCCUPIED)
-        # due on the 7th → within 3 days of the 5th
-        due_soon = Tenant.objects.create(owner=self.owner, berth=b, name="Due", phone="1", join_date=date(2026, 1, 7))
-        # due on the 25th → too far off
+        # due on the 21st → 1 day into the 3-day window → reminded
+        in_window = Tenant.objects.create(owner=self.owner, berth=b, name="Due", phone="1", join_date=date(2026, 1, 21))
+        # due on the 25th → still in the future → NOT reminded (never before the due date)
         b2 = Berth.objects.create(room=b.room, label="B", status=Berth.OCCUPIED)
-        Tenant.objects.create(owner=self.owner, berth=b2, name="Later", phone="2", join_date=date(2026, 1, 25))
+        Tenant.objects.create(owner=self.owner, berth=b2, name="Future", phone="2", join_date=date(2026, 1, 25))
+        # due on the 15th → 7 days past due, window closed → NOT reminded
+        b3 = Berth.objects.create(room=b.room, label="C", status=Berth.OCCUPIED)
+        Tenant.objects.create(owner=self.owner, berth=b3, name="Old", phone="3", join_date=date(2026, 1, 15))
 
         picked = [t.name for t, _ in tenants_to_remind(self.owner, today)]
         self.assertEqual(picked, ["Due"])
 
         # once paid this month, drops out
-        Payment.objects.create(tenant=due_soon, month=7, year=2026, amount_due=1000, amount_paid=1000)
+        Payment.objects.create(tenant=in_window, month=7, year=2026, amount_due=1000, amount_paid=1000)
         self.assertEqual(tenants_to_remind(self.owner, today), [])
 
 
