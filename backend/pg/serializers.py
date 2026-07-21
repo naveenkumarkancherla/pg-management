@@ -77,8 +77,9 @@ class TenantSerializer(serializers.ModelSerializer):
         p = next((x for x in obj.payments.all() if x.month == month and x.year == year), None)
         base = {"due_day": due_day, "period_month": month, "period_year": year}
         if p is None:
-            # new cycle, nothing collected yet → full rent pending
-            return {**base, "due": float(rent), "paid": 0.0, "pending": float(rent), "status": "unpaid"}
+            # no rent (e.g. a staff bed) → nothing owed → treat as paid
+            status = "paid" if rent <= 0 else "unpaid"
+            return {**base, "due": float(rent), "paid": 0.0, "pending": float(rent), "status": status}
         return {
             **base,
             "due": float(p.amount_due),

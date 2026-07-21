@@ -134,12 +134,12 @@ class Payment(models.Model):
         if self.tenant_id and self.owner_id is None:
             self.owner_id = self.tenant.owner_id
         # status is derived, never trusted from input.
-        if self.amount_paid <= 0:
-            self.status = self.UNPAID
-        elif self.amount_paid < self.amount_due:
-            self.status = self.PARTIAL
-        else:
+        if self.amount_paid >= self.amount_due:  # covers nothing-owed (due 0) and fully paid
             self.status = self.PAID
+        elif self.amount_paid <= 0:
+            self.status = self.UNPAID
+        else:
+            self.status = self.PARTIAL
         super().save(*args, **kwargs)
 
     def __str__(self):

@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -188,12 +189,16 @@ class TenantViewSet(OwnedViewSet):
             today = date.today()
             qs = qs.filter(payments__month=today.month, payments__year=today.year, payments__status=ps)
         elif ps == Payment.UNPAID:
-            # "unpaid" includes partial — i.e. everyone NOT fully paid this month
+            # "unpaid" includes partial — everyone NOT fully paid this month, excluding
+            # rent-free beds (e.g. staff) which owe nothing.
             today = date.today()
             fully_paid_ids = Payment.objects.filter(
                 month=today.month, year=today.year, status=Payment.PAID
             ).values_list("tenant_id", flat=True)
-            qs = qs.filter(berth__isnull=False, vacate_date__isnull=True).exclude(id__in=fully_paid_ids)
+            eff_rent = Coalesce("berth__rent_amount", "berth__room__rent_amount")
+            qs = (qs.filter(berth__isnull=False, vacate_date__isnull=True)
+                    .annotate(_eff_rent=eff_rent).filter(_eff_rent__gt=0)
+                    .exclude(id__in=fully_paid_ids))
         return qs.distinct()
 
     def perform_create(self, serializer):
