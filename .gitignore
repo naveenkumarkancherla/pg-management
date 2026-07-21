@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/.env
+backend/db.sqlite3
+backend/firebase-service-account.json
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/pubspec.lock
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

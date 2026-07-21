@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "814928120470",
+    "project_id": "pg-management-703c9",
+    "storage_bucket": "pg-management-703c9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814928120470:android:9ede27a8536a766f3b10b7",
+        "android_client_info": {
+          "package_name": "com.yourcompany.pg_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSFf-R1lYcRywTJckIeRoUhAvaDHIweNc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
