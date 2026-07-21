@@ -161,6 +161,24 @@ class Api {
       }) as List;
   static Future<List> payments({String? status}) async =>
       await get('/api/payments/', {if (status != null) 'status': status}) as List;
+
+  // --- expenses / bills ---
+  static Future<List> expenses(int pgId, {int? month, int? year}) async =>
+      await get('/api/expenses/', {
+        'pg': pgId,
+        if (month != null) 'month': month,
+        if (year != null) 'year': year,
+      }) as List;
+  static Future<void> addExpense(int pgId,
+      {required String title, required String amount, String? category, String? spentOn}) async {
+    await post('/api/expenses/', {
+      'pg': pgId,
+      'title': title,
+      'amount': amount,
+      if (category != null && category.isNotEmpty) 'category': category,
+      if (spentOn != null) 'spent_on': spentOn,
+    });
+  }
   // Vacated tenants across all PGs (they hold no berth, so not pg-scoped).
   // [query] matches name OR phone.
   static Future<List> vacatedTenants({String? query}) async => await get('/api/tenants/', {

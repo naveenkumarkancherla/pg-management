@@ -6,12 +6,23 @@ import 'theme.dart';
 import 'widgets.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final String? flash; // one-off message to show on arrival (e.g. after logout)
+  const AuthScreen({super.key, this.flash});
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.flash != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) snack(context, widget.flash!);
+      });
+    }
+  }
+
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _phone = TextEditingController();

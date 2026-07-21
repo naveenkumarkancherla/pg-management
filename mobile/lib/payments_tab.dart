@@ -71,7 +71,11 @@ class _PaymentsTabState extends State<PaymentsTab> {
                         child: Icon(Icons.currency_rupee, color: _colors[p['status']] ?? Colors.grey, size: 18),
                       ),
                       title: Text('${p['tenant_name']}', style: const TextStyle(fontWeight: FontWeight.w600, color: kGreen)),
-                      subtitle: Text('${p['month']}/${p['year']} · ${p['status']}'),
+                      subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('${p['month']}/${p['year']} · ${p['status']}'),
+                        if (p['payment_date'] != null)
+                          Text('Paid ${fmtDateTime(p['payment_date'])}', style: const TextStyle(fontSize: 11, color: Colors.black45)),
+                      ]),
                       trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                         Text('₹${p['amount_paid']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                         Text('of ₹${p['amount_due']}', style: const TextStyle(fontSize: 11, color: Colors.black54)),

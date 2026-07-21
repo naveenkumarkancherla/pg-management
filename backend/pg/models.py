@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 # Ownership: PGProperty and Tenant carry a direct owner FK (Tenant keeps it after a
 # berth is vacated). Floor/Room/Berth/Payment expose an `owner` property that walks
@@ -92,6 +93,7 @@ class Tenant(models.Model):
     join_date = models.DateField()
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     vacate_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)  # when the tenant was added
 
     @property
     def current_rent(self):
@@ -142,6 +144,24 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.tenant} {self.month}/{self.year} {self.status}"
+
+
+class Expense(models.Model):
+    """A bill/expense the owner records (electricity, maintenance, groceries…).
+    Optionally scoped to a PG; feeds the dashboard's "spent this month"."""
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="expenses")
+    pg = models.ForeignKey(PGProperty, on_delete=models.CASCADE, related_name="expenses", null=True, blank=True)
+    title = models.CharField(max_length=120)
+    category = models.CharField(max_length=40, blank=True)  # e.g. utilities, maintenance
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    spent_on = models.DateField(default=timezone.localdate)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-spent_on", "-created_at"]
+
+    def __str__(self):
+        return f"{self.title} ₹{self.amount}"
 
 
 class ReminderLog(models.Model):

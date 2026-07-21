@@ -79,10 +79,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
     await Api.logout();
-    if (mounted) {
-      Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const AuthScreen()));
-    }
+    if (!mounted) return;
+    Navigator.of(context).pop(); // dismiss the loader
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const AuthScreen(flash: 'Logged out successfully')),
+    );
   }
 
   @override

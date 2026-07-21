@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 
 import 'theme.dart';
 
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/// "21 Jul 2026, 1:05 PM" from an ISO string. [withTime] false → date only.
+String fmtDateTime(String? iso, {bool withTime = true}) {
+  if (iso == null || iso.isEmpty) return '—';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '—';
+  final date = '${d.day} ${_months[d.month - 1]} ${d.year}';
+  if (!withTime) return date;
+  var h = d.hour % 12;
+  if (h == 0) h = 12;
+  final ampm = d.hour < 12 ? 'AM' : 'PM';
+  return '$date, $h:${d.minute.toString().padLeft(2, '0')} $ampm';
+}
+
 /// FutureBuilder with consistent loading spinner, error+retry, and data states.
 class AsyncView<T> extends StatelessWidget {
   final Future<T> future;

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Berth, Floor, PGProperty, Payment, Room, Tenant
+from .models import Berth, Expense, Floor, PGProperty, Payment, Room, Tenant
 
 
 class PGPropertySerializer(serializers.ModelSerializer):
@@ -53,10 +53,10 @@ class TenantSerializer(serializers.ModelSerializer):
         model = Tenant
         fields = [
             "id", "berth", "name", "phone", "id_proof", "whatsapp",
-            "join_date", "deposit_amount", "vacate_date",
+            "join_date", "deposit_amount", "vacate_date", "created_at",
             "location", "current_rent", "is_active", "current_payment",
         ]
-        read_only_fields = ["vacate_date"]  # set via the vacate action, not free-form
+        read_only_fields = ["vacate_date", "created_at"]  # set by the system, not free-form
 
     def get_location(self, obj):
         if not obj.berth:
@@ -86,6 +86,13 @@ class TenantSerializer(serializers.ModelSerializer):
             "pending": float(p.amount_due - p.amount_paid),
             "status": p.status,
         }
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Expense
+        fields = ["id", "pg", "title", "category", "amount", "spent_on", "created_at"]
+        read_only_fields = ["created_at"]
 
 
 class PaymentSerializer(serializers.ModelSerializer):

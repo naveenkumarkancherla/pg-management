@@ -5,7 +5,7 @@ from decimal import Decimal
 
 from django.db.models import Sum
 
-from .models import Berth, Payment, Tenant
+from .models import Berth, Expense, Payment, Tenant
 
 REMIND_BEFORE_DAYS = 3  # ponytail: constant, not config — change here if it ever varies
 
@@ -79,6 +79,12 @@ def analytics(owner, pg_id=None):
     ).count()
     active = Tenant.objects.filter(owner=owner, berth__isnull=False, vacate_date__isnull=True).count()
 
+    # spent this month (bills/expenses), month-specific like the rest of the dashboard
+    exp = Expense.objects.filter(owner=owner, spent_on__year=today.year, spent_on__month=today.month)
+    if pg_id:
+        exp = exp.filter(pg_id=pg_id)
+    spent = exp.aggregate(s=Sum("amount"))["s"] or Decimal("0")
+
     return {
         "occupancy_pct": round(occupied / total * 100, 1) if total else 0,
         "berths_total": total,
@@ -89,4 +95,5 @@ def analytics(owner, pg_id=None):
         "revenue_last_month": _revenue(owner, prev_year, prev_month),
         "collection": breakdown,
         "vacated_this_month": churn,
+        "expenses_this_month": spent,
     }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'api.dart';
+import 'expenses_screen.dart';
+import 'theme.dart';
 import 'widgets.dart';
 
 class DashboardTab extends StatefulWidget {
@@ -52,6 +54,8 @@ class _DashboardTabState extends State<DashboardTab> {
             Row(children: [
               Expanded(child: StatCard(label: 'Collected (MTD)', value: '₹${a['revenue_this_month']}', icon: Icons.account_balance_wallet)),
               const SizedBox(width: 10),
+              Expanded(child: StatCard(label: 'Spent (MTD)', value: '₹${a['expenses_this_month'] ?? 0}', icon: Icons.shopping_cart)),
+              const SizedBox(width: 10),
               Expanded(child: StatCard(label: 'Last month', value: '₹${a['revenue_last_month']}', icon: Icons.history)),
             ]),
             const SizedBox(height: 6),
@@ -59,6 +63,18 @@ class _DashboardTabState extends State<DashboardTab> {
               for (final s in const ['paid', 'partial', 'unpaid'])
                 KeyValueRow('${s[0].toUpperCase()}${s.substring(1)}', '${col[s]['count']} · ₹${col[s]['amount']}'),
             ]),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ExpensesScreen(pgId: widget.pgId)));
+                  _reload(); // refresh "Spent (MTD)" after returning
+                },
+                icon: const Icon(Icons.receipt_long, color: kBrown),
+                label: const Text('Manage bills / expenses', style: TextStyle(color: kBrown)),
+              ),
+            ),
           ]);
         },
       ),

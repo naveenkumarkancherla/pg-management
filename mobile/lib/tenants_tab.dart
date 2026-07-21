@@ -199,7 +199,7 @@ class _TenantsTabState extends State<TenantsTab> {
             ListTile(
               dense: true,
               title: Text('${p['month']}/${p['year']}'),
-              subtitle: Text('${p['status']}'),
+              subtitle: Text('${p['status']}${p['payment_date'] != null ? ' · ${fmtDateTime(p['payment_date'])}' : ''}'),
               trailing: Text('₹${p['amount_paid']} / ₹${p['amount_due']}'),
             ),
         ]),
@@ -354,6 +354,14 @@ class _TenantsTabState extends State<TenantsTab> {
                                   const SizedBox(width: 4),
                                   Expanded(child: Text('${t['location'] ?? 'Vacated'}', style: const TextStyle(fontSize: 11, color: Colors.black54))),
                                 ]),
+                                if (t['created_at'] != null) ...[
+                                  const SizedBox(height: 2),
+                                  Row(children: [
+                                    const Icon(Icons.schedule, size: 12, color: Colors.black45),
+                                    const SizedBox(width: 4),
+                                    Expanded(child: Text('Added ${fmtDateTime(t['created_at'])}', style: const TextStyle(fontSize: 10, color: Colors.black45))),
+                                  ]),
+                                ],
                               ]),
                             ),
                             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [

@@ -9,3 +9,4 @@ gunicorn>=22.0
 whitenoise>=6.6
 django-cors-headers>=4.4
 firebase-admin>=7.0
+bcrypt>=4.1

@@ -12,10 +12,10 @@ from rest_framework.views import APIView
 from owners.permissions import IsActiveOwner
 
 from . import services
-from .models import Berth, Floor, PGProperty, Payment, Room, Tenant
+from .models import Berth, Expense, Floor, PGProperty, Payment, Room, Tenant
 from .serializers import (
-    BerthSerializer, FloorSerializer, PaymentSerializer, PGPropertySerializer,
-    RoomSerializer, TenantSerializer,
+    BerthSerializer, ExpenseSerializer, FloorSerializer, PaymentSerializer,
+    PGPropertySerializer, RoomSerializer, TenantSerializer,
 )
 
 
@@ -280,6 +280,26 @@ class TenantViewSet(OwnedViewSet):
     def payments(self, request, pk=None):
         tenant = self.get_object()
         return Response(PaymentSerializer(tenant.payments.all(), many=True).data)
+
+
+class ExpenseViewSet(OwnedViewSet):
+    """Owner's bills/expenses. Optional ?pg=, ?month=&year= filters."""
+    queryset = Expense.objects.all()
+    serializer_class = ExpenseSerializer
+    parent_field = "pg"  # if a pg is given, it must belong to the owner
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        p = self.request.query_params
+        if p.get("pg"):
+            qs = qs.filter(pg_id=p["pg"])
+        if p.get("month") and p.get("year"):
+            qs = qs.filter(spent_on__month=p["month"], spent_on__year=p["year"])
+        return qs
+
+    def perform_create(self, serializer):
+        self._check_parent(serializer)
+        serializer.save(owner=self.request.user)
 
 
 class PaymentViewSet(viewsets.ReadOnlyModelViewSet):

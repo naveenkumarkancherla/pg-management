@@ -81,6 +81,15 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
 ]
 
+# bcrypt verifies ~10x faster than PBKDF2 (600k iters) on low-CPU hosts (Render free),
+# cutting warm login from ~2s to ~0.3s. PBKDF2 kept below so existing hashes still verify
+# (Django auto-rehashes to bcrypt on the user's next successful login).
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.BCryptSHA256PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
