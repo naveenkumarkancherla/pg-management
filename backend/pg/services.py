@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db.models import Sum
+from django.db.models.functions import ExtractMonth, ExtractYear
 
 from .models import Berth, Expense, Payment, Tenant
 
@@ -45,6 +46,30 @@ def tenants_to_remind(owner, today):
         ).exists()
         if not paid:
             out.append((t, due))
+    return out
+
+
+def monthly_summary(owner, pg_id=None):
+    """Income (rent collected) per month, plus expenses and net, newest first.
+    Income is grouped by the payment's billing cycle (month/year); expenses by spent_on."""
+    pay = Payment.objects.filter(tenant__owner=owner)
+    exp = Expense.objects.filter(owner=owner)
+    if pg_id:
+        pay = pay.filter(tenant__berth__room__floor__pg_id=pg_id)
+        exp = exp.filter(pg_id=pg_id)
+
+    merged = {}  # (year, month) -> {"income", "spent"}
+    for r in pay.values("year", "month").annotate(s=Sum("amount_paid")):
+        merged[(r["year"], r["month"])] = {"income": r["s"] or Decimal("0"), "spent": Decimal("0")}
+    for r in (exp.annotate(y=ExtractYear("spent_on"), m=ExtractMonth("spent_on"))
+                 .values("y", "m").annotate(s=Sum("amount"))):
+        merged.setdefault((r["y"], r["m"]), {"income": Decimal("0"), "spent": Decimal("0")})["spent"] = r["s"] or Decimal("0")
+
+    out = []
+    for (year, month) in sorted(merged, reverse=True):
+        income = merged[(year, month)]["income"]
+        spent = merged[(year, month)]["spent"]
+        out.append({"year": year, "month": month, "income": income, "spent": spent, "net": income - spent})
     return out
 
 

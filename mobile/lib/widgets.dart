@@ -4,6 +4,8 @@ import 'theme.dart';
 
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+String monthName(int m) => (m >= 1 && m <= 12) ? _months[m - 1] : '$m';
+
 /// "21 Jul 2026, 1:05 PM" from an ISO string. [withTime] false → date only.
 String fmtDateTime(String? iso, {bool withTime = true}) {
   if (iso == null || iso.isEmpty) return '—';

@@ -15,4 +15,5 @@ router.register("expenses", views.ExpenseViewSet)
 urlpatterns = [
     path("", include(router.urls)),
     path("analytics/", views.AnalyticsView.as_view()),
+    path("income/", views.MonthlyIncomeView.as_view()),
 ]

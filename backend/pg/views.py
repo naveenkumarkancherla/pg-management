@@ -324,6 +324,13 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
         return qs
 
 
+class MonthlyIncomeView(APIView):
+    permission_classes = [IsActiveOwner]
+
+    def get(self, request):
+        return Response(services.monthly_summary(request.user, request.query_params.get("pg")))
+
+
 class AnalyticsView(APIView):
     permission_classes = [IsActiveOwner]
 

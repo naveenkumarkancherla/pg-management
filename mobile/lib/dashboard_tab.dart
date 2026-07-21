@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'expenses_screen.dart';
+import 'income_history_screen.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
@@ -64,17 +65,27 @@ class _DashboardTabState extends State<DashboardTab> {
                 KeyValueRow('${s[0].toUpperCase()}${s.substring(1)}', '${col[s]['count']} · ₹${col[s]['amount']}'),
             ]),
             const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ExpensesScreen(pgId: widget.pgId)));
-                  _reload(); // refresh "Spent (MTD)" after returning
-                },
-                icon: const Icon(Icons.receipt_long, color: kBrown),
-                label: const Text('Manage bills / expenses', style: TextStyle(color: kBrown)),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => IncomeHistoryScreen(pgId: widget.pgId))),
+                  icon: const Icon(Icons.calendar_month, color: kGreen),
+                  label: const Text('Monthly income', style: TextStyle(color: kGreen)),
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ExpensesScreen(pgId: widget.pgId)));
+                    _reload(); // refresh "Spent (MTD)" after returning
+                  },
+                  icon: const Icon(Icons.receipt_long, color: kBrown),
+                  label: const Text('Bills / expenses', style: TextStyle(color: kBrown)),
+                ),
+              ),
+            ]),
           ]);
         },
       ),

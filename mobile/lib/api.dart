@@ -164,6 +164,8 @@ class Api {
   static Future<List> pgs() async => await get('/api/pgs/') as List;
   static Future<Map> analytics(int? pgId) async =>
       await get('/api/analytics/', pgId != null ? {'pg': pgId} : null) as Map;
+  static Future<List> monthlyIncome(int pgId) async =>
+      await get('/api/income/', {'pg': pgId}) as List;
   static Future<List> floors(int pgId) async => await get('/api/floors/', {'pg': pgId}) as List;
   static Future<List> berths(int pgId, {String? status}) async =>
       await get('/api/berths/', {'pg': pgId, if (status != null) 'status': status}) as List;
