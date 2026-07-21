@@ -203,6 +203,8 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
   String _q = '';
   @override
   Widget build(BuildContext context) {
+    // Short lists (floors, PGs) don't need search — show a plain dropdown list.
+    final showSearch = widget.items.length > 8;
     final filtered = widget.items
         .where((i) => widget.labelOf(i).toLowerCase().contains(_q.toLowerCase()))
         .toList();
@@ -211,12 +213,14 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
       content: SizedBox(
         width: double.maxFinite,
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(
-            autofocus: true,
-            decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search'),
-            onChanged: (v) => setState(() => _q = v),
-          ),
-          const SizedBox(height: 8),
+          if (showSearch) ...[
+            TextField(
+              autofocus: true,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search'),
+              onChanged: (v) => setState(() => _q = v),
+            ),
+            const SizedBox(height: 8),
+          ],
           Flexible(
             child: ListView(shrinkWrap: true, children: [
               for (final i in filtered)
