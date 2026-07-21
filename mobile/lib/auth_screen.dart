@@ -75,8 +75,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Icon(Icons.home_work, size: 48, color: kGreen),
                   const SizedBox(height: 8),
-                  Text(_register ? 'Create account' : 'PG Management',
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kGreen)),
+                  if (_register)
+                    const Text('Create account', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: kGreen))
+                  else
+                    // "PG" serif wordmark logo
+                    const Text('PG', style: TextStyle(fontFamily: 'Serif', fontSize: 58, fontWeight: FontWeight.w800, color: kGreen, letterSpacing: 1, height: 1.0)),
                   const SizedBox(height: 20),
                   TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.white)),
                   const SizedBox(height: 12),

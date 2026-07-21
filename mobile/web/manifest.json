@@ -1,11 +1,11 @@
 {
-    "name": "pg_management",
-    "short_name": "pg_management",
+    "name": "PG · Paying Guest",
+    "short_name": "PG",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#232320",
+    "theme_color": "#232320",
+    "description": "PG — Paying Guest management",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

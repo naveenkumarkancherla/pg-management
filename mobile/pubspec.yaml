@@ -19,3 +19,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Serif   # Playfair Display — used for the "PG" logo wordmark
+      fonts:
+        - asset: assets/fonts/Serif.ttf
