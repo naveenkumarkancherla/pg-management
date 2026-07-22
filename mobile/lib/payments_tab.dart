@@ -21,7 +21,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
     _future = _fetch();
   }
 
-  Future<List> _fetch() => Api.payments(status: _status == 'all' ? null : _status);
+  Future<List> _fetch() => Api.payments(widget.pgId, status: _status == 'all' ? null : _status);
   void _reload() => setState(() {
         _future = _fetch();
       });

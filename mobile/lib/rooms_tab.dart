@@ -15,12 +15,20 @@ class _RoomsTabState extends State<RoomsTab> {
   late Future<List> _future;
   String _status = 'all'; // all | vacant | occupied
   String _floor = 'All'; // floor-name filter
+  String _search = ''; // room-number text filter
+  final _searchCtl = TextEditingController();
   bool _showRent = false; // rent hidden by default
 
   @override
   void initState() {
     super.initState();
     _future = Api.berths(widget.pgId);
+  }
+
+  @override
+  void dispose() {
+    _searchCtl.dispose();
+    super.dispose();
   }
 
   void _reload() => setState(() {
@@ -275,7 +283,11 @@ class _RoomsTabState extends State<RoomsTab> {
           builder: (c, allBerths) {
             final floorNames = <String>{for (final b in allBerths) '${b['floor_name']}'}.toList()..sort();
             final byStatus = _status == 'all' ? allBerths : allBerths.where((b) => b['status'] == _status).toList();
-            final berths = _floor == 'All' ? byStatus : byStatus.where((b) => '${b['floor_name']}' == _floor).toList();
+            final byFloorSel = _floor == 'All' ? byStatus : byStatus.where((b) => '${b['floor_name']}' == _floor).toList();
+            final q = _search.trim().toLowerCase();
+            final berths = q.isEmpty
+                ? byFloorSel
+                : byFloorSel.where((b) => '${b['room_number']}'.toLowerCase().contains(q)).toList();
 
             // group by room id (not number) so two rooms with the same number never merge
             final byFloor = <String, Map<int, List>>{};
@@ -308,6 +320,36 @@ class _RoomsTabState extends State<RoomsTab> {
                     ),
                   ),
               ]),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _searchCtl,
+                onChanged: (v) => setState(() => _search = v),
+                decoration: InputDecoration(
+                  hintText: 'Search room number',
+                  prefixIcon: const Icon(Icons.search, color: kGreen),
+                  suffixIcon: _search.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () {
+                            _searchCtl.clear();
+                            setState(() => _search = '');
+                          },
+                        ),
+                  filled: true,
+                  fillColor: Colors.white,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: kGreen.withValues(alpha: 0.25)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: kGreen, width: 1.5),
+                  ),
+                ),
+              ),
               const SizedBox(height: 10),
               SearchableField<String>(
                 label: 'Floor',
