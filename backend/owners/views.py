@@ -1,5 +1,5 @@
+import calendar
 import json
-from datetime import timedelta
 
 import razorpay
 from django.conf import settings
@@ -20,11 +20,26 @@ def _rzp():
     return razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
 
+def _add_months(start, months):
+    """Advance `start` by whole calendar months, clamping the day to the target
+    month's length (Jan 31 + 1 month → Feb 28). Each cycle spans that month's real
+    day count instead of a fixed 30."""
+    m = start.month - 1 + months
+    year, month = start.year + m // 12, m % 12 + 1
+    day = min(start.day, calendar.monthrange(year, month)[1])
+    return start.replace(year=year, month=month, day=day)
+
+
 def _activate(owner, plan):
-    """Grant access: active subscription + auto-approval."""
+    """Grant access: active subscription + auto-approval. Expiry advances by whole
+    month cycles (dynamic per-month days). Renewals stack onto any remaining time
+    rather than resetting from now."""
+    now = timezone.now()
+    base = owner.subscription_expiry if owner.has_active_subscription() else now
+    months = max(1, round(plan.duration_days / 30))
     owner.subscription_plan = plan
     owner.subscription_status = "active"
-    owner.subscription_expiry = timezone.now() + timedelta(days=plan.duration_days)
+    owner.subscription_expiry = _add_months(base, months)
     owner.is_approved = True
     owner.save(update_fields=[
         "subscription_plan", "subscription_status", "subscription_expiry", "is_approved",

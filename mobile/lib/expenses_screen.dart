@@ -21,7 +21,12 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     _future = _fetch();
   }
 
-  Future<List> _fetch() => Api.expenses(widget.pgId);
+  // Current month only; the calendar month's real day count (28/30/31) is applied
+  // server-side via spent_on month/year, so each month cycle scopes itself.
+  Future<List> _fetch() {
+    final now = DateTime.now();
+    return Api.expenses(widget.pgId, month: now.month, year: now.year);
+  }
   void _reload() => setState(() => _future = _fetch());
 
   double _num(v) => (v is num) ? v.toDouble() : double.tryParse('$v') ?? 0;

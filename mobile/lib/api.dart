@@ -177,8 +177,13 @@ class Api {
         if (name != null && name.isNotEmpty) 'name': name,
         if (activeOnly) 'active': 'true',
       }) as List;
-  static Future<List> payments({String? status}) async =>
-      await get('/api/payments/', {if (status != null) 'status': status}) as List;
+  static Future<List> payments(int pgId, {String? status, int? month, int? year}) async =>
+      await get('/api/payments/', {
+        'pg': pgId,
+        if (status != null) 'status': status,
+        if (month != null) 'month': month,
+        if (year != null) 'year': year,
+      }) as List;
 
   // --- expenses / bills ---
   static Future<List> expenses(int pgId, {int? month, int? year}) async =>
