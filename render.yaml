@@ -37,3 +37,9 @@ services:
         sync: false
       - key: GUPSHUP_APP
         sync: false
+      - key: SUPABASE_URL          # Supabase → Settings → API → Project URL
+        value: "https://ebhfnpcxyhaklnirbjgn.supabase.co"
+      - key: SUPABASE_SERVICE_KEY  # service_role secret — set in dashboard, never commit
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: "pg-management-images"
