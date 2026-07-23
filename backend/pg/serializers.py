@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import Berth, Expense, Floor, PGProperty, Payment, Room, Tenant
+from .storage import delete_url, upload_data_url
 
 
 class PGPropertySerializer(serializers.ModelSerializer):
@@ -65,11 +66,35 @@ class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = [
-            "id", "berth", "name", "phone", "id_proof", "whatsapp",
+            "id", "berth", "name", "phone", "id_proof", "photo", "whatsapp",
             "join_date", "deposit_amount", "vacate_date", "created_at",
             "location", "current_rent", "is_active", "current_payment",
         ]
         read_only_fields = ["vacate_date", "created_at"]  # set by the system, not free-form
+
+    def validate_photo(self, value):
+        # Client sends a base64 data URL for a new/changed photo → upload to Supabase
+        # Storage and keep only the URL. An unchanged http(s) URL or "" passes through.
+        # When the photo actually changes (replaced or removed), delete the old object
+        # so the bucket doesn't accumulate orphans.
+        old = getattr(self.instance, "photo", "") if self.instance else ""
+        new = upload_data_url(value) if value and value.startswith("data:") else value
+        if old and old != new:
+            delete_url(old)
+        return new
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # The photo URL is cheap, but the active inmates list is fetched on every
+        # filter/search keystroke; keep it lean. add & edit (create/retrieve/update)
+        # and the vacated-tenants list (?active=false, opened deliberately) keep it.
+        view = self.context.get("view")
+        if view is not None and getattr(view, "action", None) == "list":
+            req = getattr(view, "request", None)
+            is_vacated = req is not None and req.query_params.get("active") == "false"
+            if not is_vacated:
+                data.pop("photo", None)
+        return data
 
     def get_location(self, obj):
         if not obj.berth:

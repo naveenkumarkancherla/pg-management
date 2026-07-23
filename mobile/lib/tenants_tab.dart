@@ -25,16 +25,27 @@ class _TenantsTabState extends State<TenantsTab> {
     _future = _fetch();
   }
 
-  Future<List> _fetch() => Api.tenants(
-        widget.pgId,
-        activeOnly: _filter == 'active',
-        paymentStatus: _filter == 'unpaid' ? 'unpaid' : null,
-        name: _search.isEmpty ? null : _search,
-      );
+  // Fetch every tenant once; filter/search happen client-side (see build) so
+  // typing and chip taps don't hit the server. Only pull-to-refresh and mutations
+  // re-fetch.
+  Future<List> _fetch() => Api.tenants(widget.pgId);
 
   void _reload() => setState(() {
         _future = _fetch();
       });
+
+  List _apply(List tenants) {
+    final q = _search.trim().toLowerCase();
+    return tenants.where((t) {
+      if (q.isNotEmpty && !'${t['name']}'.toLowerCase().contains(q)) return false;
+      if (_filter == 'active' && t['is_active'] != true) return false;
+      if (_filter == 'unpaid') {
+        final s = '${t['current_payment']?['status']}';
+        if (s != 'unpaid' && s != 'partial') return false;
+      }
+      return true;
+    }).toList();
+  }
 
   // ---- Collect (additive; join-anchored cycle; shows pending) ----
   Future<void> _collect(Map t) async {
@@ -277,10 +288,7 @@ class _TenantsTabState extends State<TenantsTab> {
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
           child: TextField(
             decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search name', filled: true, fillColor: Colors.white, border: OutlineInputBorder()),
-            onChanged: (v) {
-              _search = v;
-              _reload();
-            },
+            onChanged: (v) => setState(() => _search = v),
           ),
         ),
         Padding(
@@ -290,12 +298,9 @@ class _TenantsTabState extends State<TenantsTab> {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: ChoiceChip(
-                  label: Text(f == 'unpaid' ? 'unpaid/partial' : f),
+                  label: Text(f == 'unpaid' ? 'Unpaid/Partial' : cap(f)),
                   selected: _filter == f,
-                  onSelected: (_) => setState(() {
-                    _filter = f;
-                    _future = _fetch();
-                  }),
+                  onSelected: (_) => setState(() => _filter = f),
                 ),
               ),
             const Spacer(),
@@ -318,9 +323,11 @@ class _TenantsTabState extends State<TenantsTab> {
             child: AsyncView<List>(
               future: _future,
               onRetry: _reload,
-              builder: (c, tenants) {
+              builder: (c, allTenants) {
+                final tenants = _apply(allTenants);
                 if (tenants.isEmpty) {
-                  return ListView(children: const [Padding(padding: EdgeInsets.all(24), child: Center(child: Text('No tenants. Tap “Add tenant”.')))]);
+                  final msg = allTenants.isEmpty ? 'No tenants. Tap “Add tenant”.' : 'No tenants match this filter.';
+                  return ListView(children: [Padding(padding: const EdgeInsets.all(24), child: Center(child: Text(msg)))]);
                 }
                 return ListView(padding: const EdgeInsets.fromLTRB(12, 4, 12, 90), children: [
                   for (final t in tenants)

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import 'theme.dart';
@@ -5,6 +7,45 @@ import 'theme.dart';
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 String monthName(int m) => (m >= 1 && m <= 12) ? _months[m - 1] : '$m';
+
+/// Capitalise the first letter — used for filter chips/labels shown to the user.
+String cap(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+/// An ImageProvider for a tenant photo. Handles both a stored http(s) URL
+/// (Firebase Storage) and a freshly-picked `data:image/...;base64,XXX` string.
+/// Returns null for empty/malformed input.
+ImageProvider? photoProvider(String? photo) {
+  if (photo == null || photo.isEmpty) return null;
+  if (photo.startsWith('http')) return NetworkImage(photo);
+  final b64 = photo.contains(',') ? photo.split(',').last : photo;
+  try {
+    return MemoryImage(base64Decode(b64));
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Full-screen, pinch-to-zoom view of a photo.
+void viewImage(BuildContext context, ImageProvider image) {
+  showDialog(
+    context: context,
+    builder: (_) => Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(12),
+      child: Stack(children: [
+        InteractiveViewer(child: Center(child: Image(image: image))),
+        Positioned(
+          top: 4,
+          right: 4,
+          child: IconButton(
+            icon: const Icon(Icons.close, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+      ]),
+    ),
+  );
+}
 
 /// "21 Jul 2026, 1:05 PM" from an ISO string. [withTime] false → date only.
 String fmtDateTime(String? iso, {bool withTime = true}) {
@@ -127,6 +168,12 @@ void snack(BuildContext context, String msg) =>
 /// Runs an async mutation behind a blocking loader, then shows a success or
 /// error snackbar. Returns true on success (caller then re-fetches its data).
 Future<bool> runTask(BuildContext context, Future<void> Function() task, {String? success}) async {
+  // Capture the navigator/messenger up front. If we gate the dismiss on
+  // `context.mounted` (as before) and the caller unmounts mid-task — e.g. the user
+  // switches tabs — the pop is skipped and the modal barrier stays up, leaving the
+  // whole screen dimmed and frozen. Holding the navigator ref dismisses it regardless.
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final messenger = ScaffoldMessenger.of(context);
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -134,12 +181,12 @@ Future<bool> runTask(BuildContext context, Future<void> Function() task, {String
   );
   try {
     await task();
-    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-    if (context.mounted && success != null) snack(context, success);
+    navigator.pop();
+    if (success != null) messenger.showSnackBar(SnackBar(content: Text(success)));
     return true;
   } catch (e) {
-    if (context.mounted) Navigator.of(context, rootNavigator: true).pop();
-    if (context.mounted) snack(context, '$e');
+    navigator.pop();
+    messenger.showSnackBar(SnackBar(content: Text('$e')));
     return false;
   }
 }

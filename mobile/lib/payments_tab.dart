@@ -42,7 +42,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
             Padding(
               padding: const EdgeInsets.only(right: 8),
               child: ChoiceChip(
-                label: Text(s),
+                label: Text(cap(s)),
                 selected: _status == s,
                 onSelected: (_) => setState(() {
                   _status = s;
@@ -72,7 +72,7 @@ class _PaymentsTabState extends State<PaymentsTab> {
                       ),
                       title: Text('${p['tenant_name']}', style: const TextStyle(fontWeight: FontWeight.w600, color: kGreen)),
                       subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('${p['month']}/${p['year']} · ${p['status']}'),
+                        Text('${p['month']}/${p['year']} · ${cap('${p['status']}')}'),
                         if (p['payment_date'] != null)
                           Text('Paid ${fmtDateTime(p['payment_date'])}', style: const TextStyle(fontSize: 11, color: Colors.black45)),
                       ]),

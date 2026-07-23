@@ -4,6 +4,10 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Capture a tenant photo while adding or editing a tenant.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach a tenant photo from your library while adding or editing a tenant.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

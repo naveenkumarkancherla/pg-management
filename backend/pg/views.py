@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import F, Q
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -330,7 +330,10 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
                            ("month", "month"), ("year", "year")):
             if p.get(key):
                 qs = qs.filter(**{field: p[key]})
-        return qs
+        # latest first: most recently collected on top, then newest period; unpaid
+        # (no payment_date) sink to the bottom. -id breaks ties deterministically so
+        # the list never shuffles between loads.
+        return qs.order_by(F("payment_date").desc(nulls_last=True), "-year", "-month", "-id")
 
 
 class MonthlyIncomeView(APIView):

@@ -314,7 +314,7 @@ class _RoomsTabState extends State<RoomsTab> {
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(s == 'vacant' ? 'available' : s),
+                      label: Text(s == 'vacant' ? 'Available' : cap(s)),
                       selected: _status == s,
                       onSelected: (_) => setState(() => _status = s),
                     ),

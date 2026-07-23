@@ -26,6 +26,21 @@ class _VacatedTenantsScreenState extends State<VacatedTenantsScreen> {
   Future<List> _fetch() => Api.vacatedTenants(query: _search.isEmpty ? null : _search);
   void _reload() => setState(() => _future = _fetch());
 
+  // Right-side thumbnail of the tenant's stored file (ID/Aadhaar); tap to view full.
+  Widget _file(BuildContext context, ImageProvider? img) {
+    if (img == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(left: 10),
+      child: GestureDetector(
+        onTap: () => viewImage(context, img),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image(image: img, width: 54, height: 54, fit: BoxFit.cover),
+        ),
+      ),
+    );
+  }
+
   Widget _row(IconData icon, String text) => Padding(
         padding: const EdgeInsets.only(top: 2),
         child: Row(children: [
@@ -82,6 +97,7 @@ class _VacatedTenantsScreenState extends State<VacatedTenantsScreen> {
                               _row(Icons.savings, 'Deposit ₹${t['deposit_amount'] ?? 0}'),
                             ]),
                           ),
+                          _file(context, photoProvider('${t['photo'] ?? ''}')),
                         ]),
                       ),
                     ),

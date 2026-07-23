@@ -140,4 +140,11 @@ MSG91_API_KEY = env("MSG91_API_KEY", default="")
 # registration. Blank → registration rejects (no insecure fallback).
 FIREBASE_CREDENTIALS = env("FIREBASE_CREDENTIALS", default="")
 
+# Supabase Storage for tenant photos. SUPABASE_URL is the project URL
+# (e.g. https://abcd.supabase.co); SUPABASE_SERVICE_KEY is the service_role key
+# (server-side only — bypasses RLS); SUPABASE_BUCKET is the bucket name.
+SUPABASE_URL = env("SUPABASE_URL", default="")
+SUPABASE_SERVICE_KEY = env("SUPABASE_SERVICE_KEY", default="")
+SUPABASE_BUCKET = env("SUPABASE_BUCKET", default="pg-management-images")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

@@ -89,6 +89,9 @@ class Tenant(models.Model):
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=20)
     id_proof = models.FileField(upload_to="id_proofs/", null=True, blank=True)
+    # Supabase Storage public URL for the tenant photo (the client uploads a base64
+    # data URL; the serializer pushes it to Storage and stores only the URL here).
+    photo = models.TextField(blank=True, default="")
     whatsapp = models.CharField(max_length=20, blank=True)  # for WhatsApp reminders
     join_date = models.DateField()
     deposit_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)

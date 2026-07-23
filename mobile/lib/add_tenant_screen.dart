@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'api.dart';
 import 'theme.dart';
@@ -25,6 +28,9 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   Map? _berth;
   bool _loading = true;
   String? _error;
+  // base64 data URL. null = untouched (don't send on edit → keep existing);
+  // '' = explicitly removed; non-empty = new/loaded photo.
+  String? _photo;
 
   bool get _isEdit => widget.tenant != null;
 
@@ -40,8 +46,28 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
     if (_isEdit) {
       _rent.text = '${t?['current_rent'] ?? ''}';
       _loading = false;
+      _loadPhoto(); // list omits the photo to stay light — fetch the full tenant
     } else {
       _loadVacant();
+    }
+  }
+
+  // The tenant list drops `photo` for speed, so fetch the single tenant to show it.
+  Future<void> _loadPhoto() async {
+    try {
+      final full = await Api.get('/api/tenants/${widget.tenant!['id']}/') as Map;
+      if (mounted) setState(() => _photo = full['photo'] ?? '');
+    } catch (_) {/* leave _photo null → save won't touch the stored photo */}
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final x = await ImagePicker().pickImage(source: source, maxWidth: 900, imageQuality: 55);
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      setState(() => _photo = 'data:image/jpeg;base64,${base64Encode(bytes)}');
+    } catch (e) {
+      if (mounted) snack(context, 'Could not get image: $e');
     }
   }
 
@@ -77,6 +103,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       'whatsapp': _whatsapp.text.trim(),
       'join_date': _fmt(_joinDate),
       'deposit_amount': _deposit.text,
+      if (_photo != null) 'photo': _photo, // null = leave the stored photo untouched
     };
     try {
       if (_isEdit) {
@@ -127,6 +154,8 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(padding: const EdgeInsets.all(16), children: [
+              _photoSection(),
+              const SizedBox(height: 12),
               _field(_name, 'Name'),
               const SizedBox(height: 12),
               _field(_phone, 'Phone', keyboard: TextInputType.phone),
@@ -183,6 +212,55 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
               BusyButton(label: _isEdit ? 'Save changes' : 'Save tenant', onPressed: _save),
             ]),
+    );
+  }
+
+  Widget _photoSection() {
+    final img = photoProvider(_photo);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Tenant file (ID / Aadhaar)', style: TextStyle(fontWeight: FontWeight.w600, color: kGreen)),
+          const SizedBox(height: 10),
+          Row(children: [
+            GestureDetector(
+              onTap: img != null ? () => viewImage(context, img) : null,
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  color: kMint.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(12),
+                  image: img != null ? DecorationImage(image: img, fit: BoxFit.cover) : null,
+                ),
+                child: img == null ? const Icon(Icons.person, size: 40, color: kBrown) : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Row(children: [
+                  Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.photo_camera, size: 18), label: const Text('Camera'))),
+                  const SizedBox(width: 8),
+                  Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, size: 18), label: const Text('Upload'))),
+                ]),
+                if (img != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() => _photo = ''),
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                      label: const Text('Remove', style: TextStyle(color: Colors.redAccent)),
+                    ),
+                  ),
+              ]),
+            ),
+          ]),
+          if (img != null)
+            const Padding(padding: EdgeInsets.only(top: 4), child: Text('Tap the file to view full size.', style: TextStyle(fontSize: 11, color: Colors.black45))),
+        ]),
+      ),
     );
   }
 

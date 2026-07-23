@@ -81,11 +81,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     // "PG" serif wordmark logo
                     const Text('PG', style: TextStyle(fontFamily: 'Serif', fontSize: 58, fontWeight: FontWeight.w800, color: kGreen, letterSpacing: 1, height: 1.0)),
                   const SizedBox(height: 20),
-                  TextField(controller: _email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.white)),
+                  TextField(controller: _email, keyboardType: TextInputType.emailAddress, textInputAction: TextInputAction.next, onSubmitted: (_) => _submit(), decoration: const InputDecoration(labelText: 'Email', filled: true, fillColor: Colors.white)),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _password,
                     obscureText: _obscure,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: 'Password',
                       filled: true,
@@ -99,7 +101,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   if (_register) ...[
                     const SizedBox(height: 12),
-                    TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone', filled: true, fillColor: Colors.white)),
+                    TextField(controller: _phone, keyboardType: TextInputType.phone, textInputAction: TextInputAction.done, onSubmitted: (_) => _submit(), decoration: const InputDecoration(labelText: 'Phone', filled: true, fillColor: Colors.white)),
                   ],
                   const SizedBox(height: 20),
                   SizedBox(
