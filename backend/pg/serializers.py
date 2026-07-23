@@ -23,6 +23,19 @@ class RoomSerializer(serializers.ModelSerializer):
         fields = ["id", "floor", "pg", "number", "rent_amount", "room_type", "berth_count"]
         extra_kwargs = {"pg": {"read_only": True}}  # derived from floor automatically
 
+    def validate(self, attrs):
+        floor = attrs.get("floor") or getattr(self.instance, "floor", None)
+        number = attrs.get("number", getattr(self.instance, "number", None))
+        if floor and number:
+            dupes = Room.objects.filter(floor=floor, number=number)
+            if self.instance:
+                dupes = dupes.exclude(pk=self.instance.pk)
+            if dupes.exists():
+                raise serializers.ValidationError(
+                    {"number": f"Room {number} already exists on this floor."}
+                )
+        return attrs
+
 
 class BerthSerializer(serializers.ModelSerializer):
     room_number = serializers.CharField(source="room.number", read_only=True)

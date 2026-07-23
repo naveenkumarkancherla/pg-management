@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from .models import Berth, Floor, PGProperty, Payment, Room, Tenant
-from .services import analytics, due_date_for, tenants_to_remind
+from .services import analytics, billing_period, due_date_for, sync_current_due, tenants_to_remind
 
 Owner = get_user_model()
 
@@ -47,6 +47,85 @@ class PaymentStatusTest(TestCase):
 
     def test_balance(self):
         self.assertEqual(self._pay("400").balance, Decimal("600"))
+
+
+class CurrentStatusTest(TestCase):
+    """The 'unpaid/partial' list must judge each tenant by their join-anchored cycle,
+    not the calendar month — else a tenant fully paid in the previous (still-current)
+    cycle is wrongly shown as unpaid while their card says 'paid'."""
+
+    def setUp(self):
+        from .services import current_status
+        self.current_status = current_status
+        self.owner = _make_owner()
+        # today = 22nd; a tenant joined on the 23rd is still inside the PREVIOUS cycle
+        self.today = date(2026, 7, 22)
+
+    def _tenant(self, join, rent=5000):
+        berth = _berth(self.owner, rent=rent, status=Berth.OCCUPIED)
+        return Tenant.objects.create(owner=self.owner, name="T", phone="9", join_date=join, berth=berth)
+
+    def test_prev_month_paid_reads_paid(self):
+        t = self._tenant(date(2026, 3, 23))  # due day 23 > today 22 → cycle = June
+        Payment.objects.create(tenant=t, month=6, year=2026, amount_due=Decimal("5000"), amount_paid=Decimal("5000"))
+        self.assertEqual(self.current_status(t, self.today), Payment.PAID)
+
+    def test_current_month_partial_reads_partial(self):
+        t = self._tenant(date(2026, 3, 10))  # due day 10 <= today 22 → cycle = July
+        Payment.objects.create(tenant=t, month=7, year=2026, amount_due=Decimal("5000"), amount_paid=Decimal("2500"))
+        self.assertEqual(self.current_status(t, self.today), Payment.PARTIAL)
+
+    def test_no_row_owes_rent_is_unpaid(self):
+        t = self._tenant(date(2026, 3, 10))
+        self.assertEqual(self.current_status(t, self.today), Payment.UNPAID)
+
+    def test_rent_free_is_paid(self):
+        t = self._tenant(date(2026, 3, 10), rent=0)
+        self.assertEqual(self.current_status(t, self.today), Payment.PAID)
+
+
+class SyncCurrentDueTest(TestCase):
+    """Changing rent must re-open/close the current cycle's dues (the 'fully paid but
+    shown partial' bug: paid == new rent but due frozen at the old higher rent)."""
+
+    def setUp(self):
+        self.owner = _make_owner()
+        self.today = date(2026, 7, 22)
+        self.berth = _berth(self.owner, rent=8000, status=Berth.OCCUPIED)
+        self.tenant = Tenant.objects.create(
+            owner=self.owner, name="Rajesh", phone="9", join_date=date(2026, 7, 20), berth=self.berth,
+        )
+        y, m = billing_period(self.tenant.join_date, self.today)
+        self.payment = Payment.objects.create(
+            tenant=self.tenant, month=m, year=y, amount_due=Decimal("8000"), amount_paid=Decimal("6000"),
+        )
+
+    def test_lowering_rent_marks_fully_paid(self):
+        self.assertEqual(self.payment.status, Payment.PARTIAL)
+        self.berth.room.rent_amount = Decimal("6000")  # rent dropped to what was paid
+        self.berth.room.save()
+        sync_current_due(self.tenant, today=self.today)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.amount_due, Decimal("6000"))
+        self.assertEqual(self.payment.status, Payment.PAID)
+
+    def test_genuine_underpayment_stays_partial(self):
+        self.berth.room.rent_amount = Decimal("7000")  # still above the 6000 paid
+        self.berth.room.save()
+        sync_current_due(self.tenant, today=self.today)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.amount_due, Decimal("7000"))
+        self.assertEqual(self.payment.status, Payment.PARTIAL)
+
+    def test_paid_cycle_untouched(self):
+        self.payment.amount_paid = Decimal("8000")  # fully paid at old rent
+        self.payment.save()
+        self.assertEqual(self.payment.status, Payment.PAID)
+        self.berth.room.rent_amount = Decimal("6000")
+        self.berth.room.save()
+        sync_current_due(self.tenant, today=self.today)
+        self.payment.refresh_from_db()
+        self.assertEqual(self.payment.amount_due, Decimal("8000"))  # frozen; paid cycles never touched
 
 
 class BerthConsistencyTest(TestCase):

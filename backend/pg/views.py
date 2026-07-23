@@ -3,7 +3,6 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Q
-from django.db.models.functions import Coalesce
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -141,6 +140,12 @@ class RoomViewSet(OwnedViewSet):
         room = serializer.save()
         Berth.objects.bulk_create([Berth(room=room, owner=room.owner, label=chr(65 + i)) for i in range(berth_count)])
 
+    def perform_update(self, serializer):
+        # a rent change flows to every seated tenant's current open cycle
+        room = serializer.save()
+        for tenant in Tenant.objects.filter(berth__room=room, vacate_date__isnull=True):
+            services.sync_current_due(tenant)
+
 
 class BerthViewSet(OwnedViewSet):
     queryset = Berth.objects.all()
@@ -163,6 +168,13 @@ class BerthViewSet(OwnedViewSet):
             qs = qs.filter(room__floor__pg_id=p["pg"])
         return qs.order_by("room__floor__name", "room__number", "label")
 
+    def perform_update(self, serializer):
+        # a per-berth rent override change flows to its tenant's current open cycle
+        berth = serializer.save()
+        tenant = Tenant.objects.filter(berth=berth, vacate_date__isnull=True).first()
+        if tenant:
+            services.sync_current_due(tenant)
+
 
 class TenantViewSet(OwnedViewSet):
     queryset = Tenant.objects.all()
@@ -183,22 +195,17 @@ class TenantViewSet(OwnedViewSet):
             qs = qs.filter(berth__isnull=False, vacate_date__isnull=True)
         elif p.get("active") == "false":  # vacated tenants (kept for history), recent first
             qs = qs.filter(vacate_date__isnull=False).order_by("-vacate_date")
-        # payment_status filters against the current month
+        # payment_status filters against each tenant's own join-anchored cycle (same
+        # period the card shows) — NOT the calendar month, which mislabels tenants
+        # whose current cycle is the previous month.
         ps = p.get("payment_status")
-        if ps in (Payment.PAID, Payment.PARTIAL):
+        if ps in (Payment.PAID, Payment.PARTIAL, Payment.UNPAID):
             today = date.today()
-            qs = qs.filter(payments__month=today.month, payments__year=today.year, payments__status=ps)
-        elif ps == Payment.UNPAID:
-            # "unpaid" includes partial — everyone NOT fully paid this month, excluding
-            # rent-free beds (e.g. staff) which owe nothing.
-            today = date.today()
-            fully_paid_ids = Payment.objects.filter(
-                month=today.month, year=today.year, status=Payment.PAID
-            ).values_list("tenant_id", flat=True)
-            eff_rent = Coalesce("berth__rent_amount", "berth__room__rent_amount")
-            qs = (qs.filter(berth__isnull=False, vacate_date__isnull=True)
-                    .annotate(_eff_rent=eff_rent).filter(_eff_rent__gt=0)
-                    .exclude(id__in=fully_paid_ids))
+            # "unpaid" chip means everyone not fully paid (unpaid OR partial).
+            wanted = {Payment.UNPAID, Payment.PARTIAL} if ps == Payment.UNPAID else {ps}
+            active = qs.filter(berth__isnull=False, vacate_date__isnull=True)
+            ids = [t.id for t in active if services.current_status(t, today) in wanted]
+            qs = active.filter(id__in=ids)
         return qs.distinct()
 
     def perform_create(self, serializer):
@@ -317,6 +324,8 @@ class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = self.queryset.filter(tenant__owner=self.request.user).select_related("tenant")
         p = self.request.query_params
+        if p.get("pg"):  # scope to one PG via the tenant's current berth chain
+            qs = qs.filter(tenant__berth__room__floor__pg_id=p["pg"])
         for key, field in (("tenant", "tenant_id"), ("status", "status"),
                            ("month", "month"), ("year", "year")):
             if p.get(key):

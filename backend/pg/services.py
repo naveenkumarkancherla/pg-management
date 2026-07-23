@@ -31,6 +31,36 @@ def billing_period(join_date, today):
     return (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
 
 
+def current_status(tenant, today=None):
+    """Paid/partial/unpaid for the tenant's CURRENT join-anchored cycle — the same
+    period the tenant card shows. Uses prefetched payments (no extra query).
+    Mirrors TenantSerializer.get_current_payment so list filters and cards agree."""
+    today = today or date.today()
+    rent = tenant.current_rent or 0
+    year, month = billing_period(tenant.join_date, today)
+    p = next((x for x in tenant.payments.all() if x.month == month and x.year == year), None)
+    if p is None:
+        return Payment.PAID if rent <= 0 else Payment.UNPAID  # nothing billed yet
+    return p.status
+
+
+def sync_current_due(tenant, today=None):
+    """Keep the current OPEN (unpaid/partial) cycle's amount_due in step with the
+    tenant's current rent, so lowering/raising a berth or room rent immediately
+    corrects what's owed. Fully-paid cycles are never touched."""
+    today = today or date.today()
+    if not tenant.is_active:
+        return
+    rent = tenant.current_rent
+    if rent is None:
+        return
+    year, month = billing_period(tenant.join_date, today)
+    p = Payment.objects.filter(tenant=tenant, month=month, year=year).first()
+    if p and p.status != Payment.PAID and p.amount_due != rent:
+        p.amount_due = rent
+        p.save()  # status recomputed in Payment.save()
+
+
 def tenants_to_remind(owner, today):
     """Active tenants whose rent is unpaid, reminded only on the due day and the next
     REMIND_WINDOW_DAYS-1 days (never before the due date; e.g. due 21st → 21st–23rd)."""
