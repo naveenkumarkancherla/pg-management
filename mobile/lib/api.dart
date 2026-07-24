@@ -202,10 +202,11 @@ class Api {
       if (spentOn != null) 'spent_on': spentOn,
     });
   }
-  // Vacated tenants across all PGs (they hold no berth, so not pg-scoped).
+  // Vacated tenants for one PG (scoped via the tenant's retained pg link).
   // [query] matches name OR phone.
-  static Future<List> vacatedTenants({String? query}) async => await get('/api/tenants/', {
+  static Future<List> vacatedTenants(int pgId, {String? query}) async => await get('/api/tenants/', {
         'active': 'false',
+        'pg': pgId,
         if (query != null && query.isNotEmpty) 'q': query,
       }) as List;
 }

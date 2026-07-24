@@ -86,6 +86,10 @@ class Tenant(models.Model):
     berth = models.OneToOneField(
         Berth, on_delete=models.SET_NULL, null=True, blank=True, related_name="tenant"
     )
+    # Direct PG link set when a berth is assigned and RETAINED after vacate/move — so
+    # vacated tenants and pg-scoped analytics stay tied to the right property (the
+    # berth chain can't do this once berth is null). Kept in sync in the views.
+    pg = models.ForeignKey(PGProperty, on_delete=models.SET_NULL, null=True, blank=True, related_name="tenants")
     name = models.CharField(max_length=120)
     phone = models.CharField(max_length=20)
     id_proof = models.FileField(upload_to="id_proofs/", null=True, blank=True)

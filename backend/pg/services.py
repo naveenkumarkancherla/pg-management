@@ -85,7 +85,8 @@ def monthly_summary(owner, pg_id=None):
     pay = Payment.objects.filter(tenant__owner=owner)
     exp = Expense.objects.filter(owner=owner)
     if pg_id:
-        pay = pay.filter(tenant__berth__room__floor__pg_id=pg_id)
+        # tenant__pg (retained link) keeps vacated tenants' past income in the PG total
+        pay = pay.filter(tenant__pg_id=pg_id)
         exp = exp.filter(pg_id=pg_id)
 
     merged = {}  # (year, month) -> {"income", "spent"}
@@ -103,11 +104,11 @@ def monthly_summary(owner, pg_id=None):
     return out
 
 
-def _revenue(owner, year, month):
-    agg = Payment.objects.filter(tenant__owner=owner, year=year, month=month).aggregate(
-        s=Sum("amount_paid")
-    )
-    return agg["s"] or Decimal("0")
+def _revenue(owner, year, month, pg_id=None):
+    qs = Payment.objects.filter(tenant__owner=owner, year=year, month=month)
+    if pg_id:
+        qs = qs.filter(tenant__pg_id=pg_id)
+    return qs.aggregate(s=Sum("amount_paid"))["s"] or Decimal("0")
 
 
 def analytics(owner, pg_id=None):
@@ -122,18 +123,23 @@ def analytics(owner, pg_id=None):
 
     cur = Payment.objects.filter(tenant__owner=owner, year=today.year, month=today.month)
     if pg_id:
-        cur = cur.filter(tenant__berth__room__floor__pg_id=pg_id)
+        cur = cur.filter(tenant__pg_id=pg_id)
     breakdown = {s: {"count": 0, "amount": Decimal("0")} for s in ("paid", "partial", "unpaid")}
     for p in cur:
         b = breakdown[p.status]
         b["count"] += 1
         b["amount"] += p.amount_paid
 
-    # churn = tenants vacated this month (owner-wide; vacated tenants hold no berth to scope by pg)
+    # churn = tenants vacated this month; scoped to the PG via the retained pg link
     churn = Tenant.objects.filter(
         owner=owner, vacate_date__year=today.year, vacate_date__month=today.month
-    ).count()
-    active = Tenant.objects.filter(owner=owner, berth__isnull=False, vacate_date__isnull=True).count()
+    )
+    active = Tenant.objects.filter(owner=owner, berth__isnull=False, vacate_date__isnull=True)
+    if pg_id:
+        churn = churn.filter(pg_id=pg_id)
+        active = active.filter(pg_id=pg_id)
+    churn = churn.count()
+    active = active.count()
 
     # spent this month (bills/expenses), month-specific like the rest of the dashboard
     exp = Expense.objects.filter(owner=owner, spent_on__year=today.year, spent_on__month=today.month)
@@ -147,8 +153,8 @@ def analytics(owner, pg_id=None):
         "berths_occupied": occupied,
         "berths_vacant": total - occupied,
         "inmates": active,
-        "revenue_this_month": _revenue(owner, today.year, today.month),
-        "revenue_last_month": _revenue(owner, prev_year, prev_month),
+        "revenue_this_month": _revenue(owner, today.year, today.month, pg_id),
+        "revenue_last_month": _revenue(owner, prev_year, prev_month, pg_id),
         "collection": breakdown,
         "vacated_this_month": churn,
         "expenses_this_month": spent,

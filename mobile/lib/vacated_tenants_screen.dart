@@ -4,11 +4,12 @@ import 'api.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-/// Read-only list of vacated tenants (kept for future reference), across all PGs.
-/// Filterable by name. Vacated tenants no longer hold a berth, so their old PG/room
-/// isn't shown — the preserved details are name, phone, dates and deposit.
+/// Read-only list of vacated tenants (kept for future reference) for one PG.
+/// Filterable by name/phone. Vacated tenants no longer hold a berth, but their PG is
+/// retained, so the preserved details are name, phone, PG, dates, deposit and file.
 class VacatedTenantsScreen extends StatefulWidget {
-  const VacatedTenantsScreen({super.key});
+  final int pgId;
+  const VacatedTenantsScreen({super.key, required this.pgId});
   @override
   State<VacatedTenantsScreen> createState() => _VacatedTenantsScreenState();
 }
@@ -23,7 +24,7 @@ class _VacatedTenantsScreenState extends State<VacatedTenantsScreen> {
     _future = _fetch();
   }
 
-  Future<List> _fetch() => Api.vacatedTenants(query: _search.isEmpty ? null : _search);
+  Future<List> _fetch() => Api.vacatedTenants(widget.pgId, query: _search.isEmpty ? null : _search);
   void _reload() => setState(() => _future = _fetch());
 
   // Right-side thumbnail of the tenant's stored file (ID/Aadhaar); tap to view full.
@@ -97,7 +98,14 @@ class _VacatedTenantsScreenState extends State<VacatedTenantsScreen> {
                               _row(Icons.savings, 'Deposit ₹${t['deposit_amount'] ?? 0}'),
                             ]),
                           ),
-                          _file(context, photoProvider('${t['photo'] ?? ''}')),
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            if ('${t['pg_name'] ?? ''}'.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 6, left: 6),
+                                child: Text('${t['pg_name']}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kBrown)),
+                              ),
+                            _file(context, photoProvider('${t['photo'] ?? ''}')),
+                          ]),
                         ]),
                       ),
                     ),

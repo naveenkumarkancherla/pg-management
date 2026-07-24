@@ -62,13 +62,14 @@ class TenantSerializer(serializers.ModelSerializer):
     current_rent = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     is_active = serializers.BooleanField(read_only=True)
     current_payment = serializers.SerializerMethodField()
+    pg_name = serializers.CharField(source="pg.name", read_only=True, default=None)
 
     class Meta:
         model = Tenant
         fields = [
             "id", "berth", "name", "phone", "id_proof", "photo", "whatsapp",
             "join_date", "deposit_amount", "vacate_date", "created_at",
-            "location", "current_rent", "is_active", "current_payment",
+            "location", "current_rent", "is_active", "current_payment", "pg_name",
         ]
         read_only_fields = ["vacate_date", "created_at"]  # set by the system, not free-form
 

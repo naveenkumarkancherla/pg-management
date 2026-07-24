@@ -27,6 +27,7 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
   List _vacant = [];
   Map? _berth;
   bool _loading = true;
+  bool _saving = false; // drives the blocking loader while the save request runs
   String? _error;
   // base64 data URL. null = untouched (don't send on edit → keep existing);
   // '' = explicitly removed; non-empty = new/loaded photo.
@@ -92,11 +93,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
   Future<void> _save() async {
+    if (_saving) return; // guard against double-tap
     if (_name.text.trim().isEmpty || _phone.text.trim().isEmpty) {
       setState(() => _error = 'Name and phone are required');
       return;
     }
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _saving = true;
+    });
     final body = {
       'name': _name.text.trim(),
       'phone': _phone.text.trim(),
@@ -134,10 +139,15 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       }
       if (mounted) {
         snack(context, _isEdit ? 'Tenant updated' : 'Tenant added');
-        Navigator.pop(context, true);
+        Navigator.pop(context, true); // screen leaves — no need to clear _saving
       }
     } catch (e) {
-      setState(() => _error = '$e');
+      if (mounted) {
+        setState(() {
+          _error = '$e';
+          _saving = false;
+        });
+      }
     }
   }
 
@@ -153,7 +163,11 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
       appBar: AppBar(title: Text(_isEdit ? 'Edit tenant' : 'Add tenant')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(padding: const EdgeInsets.all(16), children: [
+          : Stack(children: [
+              ListView(
+                // clear the system nav bar so the Save button isn't under it
+                padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 28),
+                children: [
               _photoSection(),
               const SizedBox(height: 12),
               _field(_name, 'Name'),
@@ -210,7 +224,21 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
               ],
               const SizedBox(height: 20),
               if (_error != null) Padding(padding: const EdgeInsets.only(bottom: 12), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-              BusyButton(label: _isEdit ? 'Save changes' : 'Save tenant', onPressed: _save),
+              FilledButton(
+                onPressed: _saving ? null : _save,
+                child: Text(_isEdit ? 'Save changes' : 'Save tenant'),
+              ),
+                ],
+              ),
+              if (_saving)
+                const Positioned.fill(
+                  child: AbsorbPointer(
+                    child: ColoredBox(
+                      color: Color(0x66000000),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  ),
+                ),
             ]),
     );
   }
@@ -239,12 +267,10 @@ class _AddTenantScreenState extends State<AddTenantScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Row(children: [
-                  Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.photo_camera, size: 18), label: const Text('Camera'))),
-                  const SizedBox(width: 8),
-                  Expanded(child: OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, size: 18), label: const Text('Upload'))),
-                ]),
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.camera), icon: const Icon(Icons.photo_camera, size: 18), label: const Text('Camera')),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(onPressed: () => _pickImage(ImageSource.gallery), icon: const Icon(Icons.photo_library, size: 18), label: const Text('Upload')),
                 if (img != null)
                   Align(
                     alignment: Alignment.centerLeft,

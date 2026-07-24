@@ -181,7 +181,7 @@ class TenantViewSet(OwnedViewSet):
     serializer_class = TenantSerializer
 
     def get_queryset(self):
-        qs = super().get_queryset().select_related("berth__room__floor__pg").prefetch_related("payments")
+        qs = super().get_queryset().select_related("berth__room__floor__pg", "pg").prefetch_related("payments")
         p = self.request.query_params
         if p.get("name"):
             qs = qs.filter(name__icontains=p["name"])
@@ -190,7 +190,8 @@ class TenantViewSet(OwnedViewSet):
         if p.get("floor"):
             qs = qs.filter(berth__room__floor_id=p["floor"])
         if p.get("pg"):
-            qs = qs.filter(berth__room__floor__pg_id=p["pg"])
+            # scope by the retained pg link so vacated tenants (no berth) stay scoped too
+            qs = qs.filter(pg_id=p["pg"])
         if p.get("active") == "true":
             qs = qs.filter(berth__isnull=False, vacate_date__isnull=True)
         elif p.get("active") == "false":  # vacated tenants (kept for history), recent first
@@ -211,7 +212,8 @@ class TenantViewSet(OwnedViewSet):
     def perform_create(self, serializer):
         berth = serializer.validated_data.get("berth")
         self._validate_berth(berth)
-        tenant = serializer.save(owner=self.request.user)
+        pg = berth.room.floor.pg if berth else None
+        tenant = serializer.save(owner=self.request.user, pg=pg)
         if tenant.berth:
             tenant.berth.status = Berth.OCCUPIED
             tenant.berth.save(update_fields=["status"])
@@ -245,8 +247,9 @@ class TenantViewSet(OwnedViewSet):
                 tenant.berth.status = Berth.VACANT
                 tenant.berth.save(update_fields=["status"])
             tenant.berth = new_berth
+            tenant.pg = new_berth.room.floor.pg  # keep pg in sync (may move across PGs)
             tenant.vacate_date = None
-            tenant.save(update_fields=["berth", "vacate_date"])
+            tenant.save(update_fields=["berth", "pg", "vacate_date"])
             new_berth.status = Berth.OCCUPIED
             new_berth.save(update_fields=["status"])
         return Response(self.get_serializer(tenant).data)

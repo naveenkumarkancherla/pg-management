@@ -308,7 +308,7 @@ class _TenantsTabState extends State<TenantsTab> {
               tooltip: 'Vacated tenants',
               icon: const Icon(Icons.history_toggle_off, color: kBrown),
               onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const VacatedTenantsScreen())),
+                  MaterialPageRoute(builder: (_) => VacatedTenantsScreen(pgId: widget.pgId))),
             ),
             IconButton(
               tooltip: _showRent ? 'Hide rent' : 'Show rent',
